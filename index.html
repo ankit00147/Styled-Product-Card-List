@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Styled Product Card List</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Tailwind config for Dark Mode toggle via class
+    tailwind.config = { darkMode: 'class' }
+  </script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 dark:text-gray-100 min-h-screen">
+  <!-- Container -->
+  <div class="max-w-6xl mx-auto p-4 sm:p-6">
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold">🛍️ Product List</h1>
+        <p class="text-gray-600 dark:text-gray-400">Responsive cards + search + cart counter</p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Cart Badge -->
+        <button class="relative px-4 py-2 rounded-xl bg-white dark:bg-gray-800 shadow hover:shadow-md transition">
+          <span class="font-medium">Cart</span>
+          <span id="cartCount" class="absolute -top-2 -right-2 text-xs font-bold bg-blue-600 text-white px-2 py-0.5 rounded-full">0</span>
+        </button>
+
+        <!-- Dark Mode Toggle -->
+        <button id="toggleDark" class="px-4 py-2 rounded-xl bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 shadow hover:shadow-md transition">
+          Toggle Dark
+        </button>
+      </div>
+    </header>
+
+    <!-- Toolbar -->
+    <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between mb-6">
+      <input
+        id="search"
+        type="text"
+        placeholder="Search products..."
+        class="w-full sm:w-80 px-4 py-2 rounded-xl bg-white dark:bg-gray-800 shadow outline-none focus:ring-2 focus:ring-blue-500"
+      />
+
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-gray-600 dark:text-gray-400">Sort by:</label>
+        <select id="sort"
+          class="px-3 py-2 rounded-xl bg-white dark:bg-gray-800 shadow outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="featured">Featured</option>
+          <option value="low">Price: Low → High</option>
+          <option value="high">Price: High → Low</option>
+          <option value="rating">Rating</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Grid -->
+    <div id="grid" class="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"></div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-black text-white text-sm opacity-0 pointer-events-none transition">
+      Added to cart!
+    </div>
+  </div>
+
+  <script>
+    // ---------- Data ----------
+    const products = [
+      {
+        id: 1,
+        title: "Wireless Headphones",
+        desc: "Lightweight, 30hr battery, BT 5.3",
+        price: 1499,
+        rating: 4,
+        tag: "New",
+        img: "https://picsum.photos/seed/p1/600/400"
+      },
+      {
+        id: 2,
+        title: "Mechanical Keyboard",
+        desc: "Hot-swappable, RGB, Blue switches",
+        price: 2699,
+        rating: 5,
+        tag: "Hot",
+        img: "https://picsum.photos/seed/p2/600/400"
+      },
+      {
+        id: 3,
+        title: "Smart Watch",
+        desc: "SpO2, Sleep tracking, 5ATM",
+        price: 1999,
+        rating: 4,
+        tag: "Sale",
+        img: "https://picsum.photos/seed/p3/600/400"
+      },
+      {
+        id: 4,
+        title: "Bluetooth Speaker",
+        desc: "Deep bass, 12hr playtime",
+        price: 1299,
+        rating: 4,
+        tag: "New",
+        img: "https://picsum.photos/seed/p4/600/400"
+      },
+      {
+        id: 5,
+        title: "USB-C Charger 65W",
+        desc: "PPS fast charge, dual port",
+        price: 1099,
+        rating: 5,
+        tag: "Best",
+        img: "https://picsum.photos/seed/p5/600/400"
+      },
+      {
+        id: 6,
+        title: "Webcam 1080p",
+        desc: "Auto-light, dual mic, tripod mount",
+        price: 1599,
+        rating: 3,
+        tag: "Deal",
+        img: "https://picsum.photos/seed/p6/600/400"
+      }
+    ];
+
+    // ---------- State ----------
+    let cartCount = 0;
+    let current = [...products];
+
+    // ---------- Helpers ----------
+    const grid = document.getElementById("grid");
+    const search = document.getElementById("search");
+    const sortSel = document.getElementById("sort");
+    const cartBadge = document.getElementById("cartCount");
+    const toast = document.getElementById("toast");
+    const toggleDark = document.getElementById("toggleDark");
+
+    // rating stars
+    const stars = (n) => {
+      const full = "★".repeat(n);
+      const empty = "☆".repeat(5 - n);
+      return `<span class="tracking-tight">${full}${empty}</span>`;
+    };
+
+    // money format (₹)
+    const rupee = (n) =>
+      new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+
+    // render cards
+    function render(list) {
+      grid.innerHTML = list
+        .map(
+          (p) => `
+        <div class="group bg-white dark:bg-gray-800 rounded-2xl shadow hover:shadow-xl transition overflow-hidden">
+          <div class="relative">
+            <img src="${p.img}" alt="${p.title}" class="w-full h-48 object-cover">
+            <span class="absolute top-3 left-3 text-xs font-semibold px-2 py-1 rounded-full bg-blue-600 text-white shadow">${p.tag}</span>
+          </div>
+
+          <div class="p-4 space-y-2">
+            <h3 class="text-lg font-semibold line-clamp-1">${p.title}</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">${p.desc}</p>
+
+            <div class="flex items-center justify-between">
+              <div class="text-xl font-bold text-green-600">${rupee(p.price)}</div>
+              <div class="text-yellow-500">${stars(p.rating)}</div>
+            </div>
+
+            <button
+              data-add="${p.id}"
+              class="w-full mt-2 px-4 py-2 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 active:scale-[.98] transition"
+            >
+              Add to Cart
+            </button>
+          </div>
+        </div>
+      `
+        )
+        .join("");
+    }
+
+    // toast show
+    function showToast(msg = "Added to cart!") {
+      toast.textContent = msg;
+      toast.classList.remove("opacity-0");
+      toast.classList.add("opacity-100");
+      setTimeout(() => toast.classList.add("opacity-0"), 900);
+    }
+
+    // filters/sort
+    function applyFilters() {
+      const q = search.value.trim().toLowerCase();
+      let list = products.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.desc.toLowerCase().includes(q) ||
+          p.tag.toLowerCase().includes(q)
+      );
+
+      const mode = sortSel.value;
+      if (mode === "low") list.sort((a, b) => a.price - b.price);
+      if (mode === "high") list.sort((a, b) => b.price - a.price);
+      if (mode === "rating") list.sort((a, b) => b.rating - a.rating);
+      // featured = default order
+
+      current = list;
+      render(current);
+    }
+
+    // ---------- Events ----------
+    search.addEventListener("input", applyFilters);
+    sortSel.addEventListener("change", applyFilters);
+
+    grid.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-add]");
+      if (!btn) return;
+      cartCount += 1;
+      cartBadge.textContent = cartCount;
+      btn.disabled = true;
+      btn.textContent = "Added!";
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = "Add to Cart";
+      }, 700);
+      showToast();
+    });
+
+    // Dark mode toggle
+    toggleDark.addEventListener("click", () => {
+      document.documentElement.classList.toggle("dark");
+    });
+
+    // ---------- Init ----------
+    render(current);
+  </script>
+</body>
+</html>
